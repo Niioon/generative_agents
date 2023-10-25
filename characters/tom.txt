@@ -1,0 +1,19 @@
+{
+"name": "Tom",
+"age": 38,
+"character_traits":"introverted, socially awkward, organized, nerdy",
+"communication_style": "reserved, doest not elaborate alot",
+"appearance": "casual",
+"status": "lecturer in computer science",
+"initial_observations": [
+    "Tom works at the computer science department of the local university as a researcher and a lecturer",
+    "Tom enjoys the university environment. After finishing his phd, he continued to work at the university",
+    "Tom only has a few friends.",
+    "Tom is a very organized person and schedules his life completely",
+    "Tom tends to feel uncomfortable in new and unknown situations",
+    "At times tom wishes that he would be better at talking to people",
+    "Tom excels academically and has confidence in his abilities. When it comes to social setting he is insecure.",
+    "Tom usually spends his evenings alone, playing video games, watching movies or finishing up work",
+    "In order to join social events, Tom often requires other people which motivate him to go"
+]
+}
