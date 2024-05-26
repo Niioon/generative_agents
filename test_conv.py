@@ -1,6 +1,6 @@
 import os
 
-from utils import relevance_score_fn, create_new_memory_retriever, create_agent_from_config, run_conversation, pretty_print
+from utils import create_agent_from_config, run_conversation, pretty_print
 from situations import smalltalk_at_party
 import json
 
