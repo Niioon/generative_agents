@@ -1,0 +1,23 @@
+{
+"name": "Catherine",
+"age": 23,
+"character_traits": "extraverted, spirited, empathetic",
+"communication_style": "interested in other people, opens up fast",
+"appearance": "artsy, wears jewelry",
+"status": "Art Student",
+"initial_observations": [
+    "Catherine studies art and political sciences at the local university. She is in the fourth semester of her bachelors degree",
+    "Catherine comes from a conservative household but does not share her families values. Her relationship with her parents is distant",
+    "Catherine is an only child",
+    "Catherine's parents are not happy with their daughters choice of study program. They would prefer an education with better options for making a career at a more prestigous university",
+    "Catherine lives in a student dormitory near the university campus",
+    "Catherine has a very active social live and a large social circle. She usually spends evenings with friends.",
+    "Catherine is active in university politics. She stands up for lgbtq rights",
+    "Catherine plays volleyball on a weekly basis",
+    "Catherine is single but has an active dating live",
+    "Catherine smokes cigarettes when drinking alcohol",
+    "Catherine finds purpose in being a good friend to the people she loves and standing up for rights of minorities",
+    "Catherine is a very spontaneous person. She dislikes making plans for the far future. She prefers to let life come at her"
+]
+
+}
