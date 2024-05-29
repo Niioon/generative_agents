@@ -1,0 +1,11 @@
+{
+"major": [
+    "The construction of the industrial Park will produce new job opportunities in the region. This will lead to a better life for citizens and increased spending, which will further boost the local economy",
+    "The industrial park will increase tax income, allowing for more spending on local infrastructure",
+    "The industrial park will make Oakville an important hub for innovation, leading to prestige and further growth"
+],
+"environmentalist": [
+    "The construction of the industrial park will destroy local flora and fauna. Especially the endangered horseshoe bat might go extinct",
+    "The water consumption of the industrial park might lead to water shortages in times of drought. Especially with an increasing drought risk in the coming years due to climate change it is not possible to ensure water supply for local citizens"
+]
+}

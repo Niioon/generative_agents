@@ -2,5 +2,7 @@
 /api_token.txt
 /short_term.log
 /std.log
+/ltm.log
 /saved_characters/
 /scrap_notebooks/
+/.ipynb_checkpoints

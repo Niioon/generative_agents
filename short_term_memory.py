@@ -33,7 +33,7 @@ class ShortTermMemory(BaseMemory):
     """The underlying language model."""
     chat_memory: BaseChatMessageHistory = Field(default_factory=ChatMessageHistory)
     """Memory of the conversation"""
-    summary: str = "nothing"
+    summary: str = ""
     """Current Summary"""
     prompt: BasePromptTemplate = SUMMARY_PROMPT
     """Prompt for summarizing"""
@@ -65,6 +65,7 @@ class ShortTermMemory(BaseMemory):
         Can deal with messages of the form:
             person: message: content
             person said content
+            person says content
         Other messages will be stored as system messages that provide context to the conversation
         """
 
@@ -78,6 +79,9 @@ class ShortTermMemory(BaseMemory):
         elif message.split()[1] == 'said':
             role, content = re.split('said', message, maxsplit=1)
             # if self.verbose: logger.info(f'{role}:{content}')
+            p_message = ChatMessage(content=content, role=role)
+        elif message.split()[1] == 'says':
+            role, content = re.split('says', message, maxsplit=1)
             p_message = ChatMessage(content=content, role=role)
         else:
             p_message = SystemMessage(content=message)
@@ -93,7 +97,10 @@ class ShortTermMemory(BaseMemory):
         return [self.memory_key]
 
     def load_memory_variables(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        """Return history summary."""
+        """
+        Defines what memory variables are provided to the chain
+        ie. the summary can be accessed in a prompt under the key stored in memory key
+        """
         return {self.memory_key: self.summary}
 
     def save_context(self, inputs: Dict[str, Any], outputs: Dict[str, str]) -> None:
@@ -109,12 +116,13 @@ class ShortTermMemory(BaseMemory):
             self.chat_memory.add_message(output_message)
         else:
             warnings.warn("No input message for the short term memory")
+        # update summary with latest two lines
         self.summary = self.predict_new_summary(
             self.chat_memory.messages[-2:], self.summary
         )
         if self.verbose:
-            logger.info(self.summary)
-            logger.info(self.chat_memory.messages)
+            logger.info(f'current summary:{self.summary}')
+            # logger.info(self.chat_memory.messages)
 
     def clear(self) -> None:
         """Clear memory contents."""

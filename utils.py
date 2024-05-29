@@ -89,7 +89,7 @@ def create_agent_from_config(path: str, agent_config=None, long_term_config=None
     # first update with agent config and then with character configs form file
     if agent_config:
         default_agent_config.update(agent_config)
-    default_agent_config.update(agent_dict)
-    agent = GenerativeAgent(short_term_memory=short_term_memory, long_term_memory=long_term_memory, **default_agent_config)
+    agent_dict.update(default_agent_config)
+    agent = GenerativeAgent(short_term_memory=short_term_memory, long_term_memory=long_term_memory, **agent_dict)
     return agent
 

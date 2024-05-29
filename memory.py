@@ -19,7 +19,7 @@ import faiss
 import os
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-fh = logging.FileHandler('std.log', mode='w')
+fh = logging.FileHandler('ltm.log', mode='w')
 logger.addHandler(fh)
 
 
@@ -89,7 +89,7 @@ class GenerativeAgentMemory(BaseMemory):
         observation_str = "\n".join(
             [self._format_memory_detail(o) for o in observations]
         )
-        result = self.chain(prompt).run(observations=observation_str)
+        result = self.chain(prompt).invoke({'observations': observation_str})['text']
         return self._parse_list(result)
 
     def _get_insights_on_topic(
@@ -116,9 +116,10 @@ class GenerativeAgentMemory(BaseMemory):
                 for i, memory in enumerate(related_memories)
             ]
         )
-        result = self.chain(prompt).run(
-            topic=topic, related_statements=related_statements
-        )
+        result = self.chain(prompt).invoke(
+            {'topic': topic,
+             'related_statements': related_statements}
+        )['text']
         # TODO: Parse the connections between memories and insights
         return self._parse_list(result)
 
@@ -146,7 +147,7 @@ class GenerativeAgentMemory(BaseMemory):
             + "\nMemory: {memory_content}"
             + "\nRating: "
         )
-        score = self.chain(prompt).run(memory_content=memory_content).strip()
+        score = self.chain(prompt).invoke({'memory_content': memory_content})['text']
         if self.verbose:
             logging.info(f"Importance score: {score}")
         match = re.search(r"^\D*(\d+)", score)
@@ -168,7 +169,7 @@ class GenerativeAgentMemory(BaseMemory):
             + "\Memories: {memory_content}"
             + "\nRating: "
         )
-        scores = self.chain(prompt).run(memory_content=memory_content).strip()
+        scores = self.chain(prompt).invoke({'memory_content': memory_content})['text']
 
         if self.verbose:
             logger.info(f"Importance scores: {scores}")
@@ -285,7 +286,8 @@ class GenerativeAgentMemory(BaseMemory):
         queries = inputs.get(self.queries_key)
         now = inputs.get(self.now_key)
         if queries is not None:
-            logger.info("Fetching memories for given queries")
+            logger.info("Fetching relevant memories for given queries")
+            logger.info(f'queries: {queries}')
             relevant_memories = [
                 mem for query in queries for mem in self.fetch_memories(query, now=now)
             ]
@@ -345,13 +347,11 @@ class GenerativeAgentMemory(BaseMemory):
         memory_retriever = GenerativeAgentMemory.create_new_memory_retriever(vectorstore)
         ltm_dict['memory_retriever'] = memory_retriever
 
-        # because langchain is very very stupid, need to manually recreate the meory stream of the retriever
+        # because langchain is very very stupid, need to manually recreate the memory stream of the retriever
         # from the stored documents of the vectorstore
         docs = list(vectorstore.docstore._dict.values())
         # sort by buffer idx to ensure correct order
-        print(docs)
         docs.sort(key=lambda x: x.metadata['buffer_idx'], reverse=False)
-        print(docs)
         memory_retriever.memory_stream = docs
 
         return GenerativeAgentMemory(**ltm_dict)
@@ -370,12 +370,12 @@ class GenerativeAgentMemory(BaseMemory):
                 return 1.0 - score / math.sqrt(2)
 
             vectorstore = FAISS(
-                embeddings_model.embed_query,
+                embeddings_model,
                 index,
                 InMemoryDocstore({}),
                 {},
                 relevance_score_fn=relevance_score_fn,
             )
         return TimeWeightedVectorStoreRetriever(
-            vectorstore=vectorstore, other_score_keys=["importance"], k=15
+            vectorstore=vectorstore, other_score_keys=["importance"], k=5
         )

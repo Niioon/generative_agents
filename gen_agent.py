@@ -7,7 +7,7 @@ from langchain.prompts import PromptTemplate
 from langchain.schema.language_model import BaseLanguageModel
 from langchain_openai import ChatOpenAI
 
-
+from langchain.schema.messages import BaseMessage, get_buffer_string, ChatMessage, SystemMessage
 from langchain.pydantic_v1 import BaseModel, Field
 from langchain.memory import CombinedMemory
 from short_term_memory import ShortTermMemory
@@ -17,6 +17,8 @@ import json
 import shutil
 import uuid
 import os
+
+
 class GenerativeAgent(BaseModel):
     """An Agent as a character with memory and innate characteristics."""
 
@@ -28,8 +30,8 @@ class GenerativeAgent(BaseModel):
     """Permanent character_traits to ascribe to the character."""
     communication_style: str = "N/A"
     """They way the character expresses them selves"""
-    appearance: str = "N/A"
-    """Appearance of the character"""
+    current_goal: str = "N/A"
+    """Current goal to achieve with characters behavior"""
     status: str
     """The character_traits of the character you wish not to change."""
     long_term_memory: GenerativeAgentMemory
@@ -82,30 +84,88 @@ class GenerativeAgent(BaseModel):
         return [re.sub(r"^\s*\d+\.\s*", "", line).strip() for line in lines]
 
     def chain(self, prompt: PromptTemplate) -> LLMChain:
+        """Returns chain for the given prompt with access to LTM"""
         return LLMChain(
             llm=self.llm, prompt=prompt, verbose=self.verbose, memory=self.long_term_memory
         )
 
     def conversation_chain(self, prompt: PromptTemplate) -> LLMChain:
+        """Returns chain for the given prompt with access to LTM and STM"""
         return LLMChain(
             llm=self.llm, prompt=prompt, verbose=self.verbose, memory=self.memory,
         )
 
     def start_situation(self):
         if not self.in_situation:
+            self.short_term_memory.clear()
             self.in_situation = True
         else:
-            warnings.warn('Agent already is in an conversation. This function call will be ignored')
+            warnings.warn('Agent already is in a situation. This function call will be ignored')
             return
 
     def end_situation (self):
         if self.in_situation:
-            conv_summary = self.short_term_memory.summary
-            self.long_term_memory.add_memory(conv_summary)
+            #conv_summary = self.short_term_memory.summary
+            #self.long_term_memory.add_memory(conv_summary)
+            self._reflect_on_conversation()
             self.short_term_memory.clear()
             self.in_situation = False
         else:
-            warnings.warn("agent is not in a conversation. This function call will be ignored")
+            warnings.warn("agent is not in a situation. This function call will be ignored")
+
+    def _appraise_statement(self, statement):
+        prompt = PromptTemplate.from_template(
+            "{agent_summary_description}"
+            + "\nIt is {current_time}."
+            + "\n{agent_name}'s status: {agent_status}"
+            + "\nSummary of relevant context from {agent_name}'s memory:"
+            + "\n{relevant_memories}"
+            + "\nThe statement which {agent_name} appraises: {statement}"
+            + "\nGiven the context from memory and the characters summary, what is {agent_name}'s emotional appraisal of the statement"
+            + "\nThe appraisal can for example be a degree of agreement/disagreement or any kind of emotional response"
+            + "\nAnswer precisely in one sentence"
+        )
+        agent_summary_description = self.get_summary()
+        relevant_memories_str = self.summarize_related_memories(statement)
+        current_time_str = datetime.now().strftime("%B %d, %Y, %I:%M %p")
+
+        kwargs: Dict[str, Any] = dict(
+            agent_summary_description=agent_summary_description,
+            current_time=current_time_str,
+            relevant_memories=relevant_memories_str,
+            agent_name=self.name,
+            current_goal=self.current_goal,
+            statement=statement,
+            agent_status=self.status,
+        )
+        return self.chain(prompt=prompt).invoke(input=kwargs)['text']
+    def _reflect_on_conversation(self):
+        """
+        called after situation ended.
+        """
+
+        # first get key points of conversation
+        prompt = PromptTemplate.from_template(
+            """
+            What are the key points or arguments of the following conversation and by whom were they made:
+            {conversation}
+            Give a list of short and precise statements in the following form
+            # statement 1
+            # statement 2
+            ...
+            """
+        )
+        conversation = get_buffer_string(self.short_term_memory.chat_memory.messages)
+        statements = self.chain(prompt).invoke(input={'conversation': conversation})['text']
+        print(statements)
+        statements = statements.split('#')[1:]
+        print(statements)
+        # append appraisal to the respective statements
+        new_memories = [", ".join([statement, self._appraise_statement(statement)]) for statement in statements]
+        print(new_memories)
+        for memory in new_memories:
+            self.long_term_memory.add_memory(memory)
+
 
     def _get_entity_from_observation(self, observation: str) -> str:
         #prompt = PromptTemplate.from_template(
@@ -114,15 +174,15 @@ class GenerativeAgent(BaseModel):
         #)
         prompt = PromptTemplate.from_template(
             "Who or what is talking or acting in the following observation: {observation}"
-            + "Answer with a single expression"
+            + "\nAnswer with a single expression"
         )
         if self.verbose: print('In _get_entity_from_observation: ')
         return self.chain(prompt).invoke(input={'observation': observation})['text']
 
     def _get_entity_action(self, observation: str, entity_name: str) -> str:
         prompt = PromptTemplate.from_template(
-            "Describe  in one sentence what {entity} is doing in the following observation? {observation}"
-            + "\nThe {entity} is..."
+            "Describe in one sentence what {entity} is doing in the following observation? {observation}"
+            + "\n{entity} is..."
         )
         return (
             self.chain(prompt).invoke(input={'observation': observation, 'entity': entity_name})['text']
@@ -132,13 +192,18 @@ class GenerativeAgent(BaseModel):
         """Summarize memories that are most relevant to an observation."""
         prompt = PromptTemplate.from_template(
             """
-            {q1}?
+            Given the presented context from memory:
+            Provide a short summary of the relationship between {agent_name} and {entity_name}
+            Provide a short summary of the relevant memories regarding the observation
             Context from memory:
             {relevant_memories}
-            Only answer based on the provided memories and do not assume anything else.
+            Observation:
+            {observation}
+            Only answer based on the provided memories and DO NOT assume anything else.
+            Answer with a maximum of two sentences for each point and answer in the following form
+            Relationship between {agent_name} and {entity_name}:...
+            Summary of relevant memories:...
             """
-        # Relevant context:
-        # this was in the template whats it for
         )
         if self.verbose: print('In summarize_related_memories: Get entity from Observation')
         entity_name = self._get_entity_from_observation(observation)
@@ -148,11 +213,17 @@ class GenerativeAgent(BaseModel):
         if self.verbose: print(f'Answer: {entity_action}')
 
         q1 = f"What is the relationship between {self.name} and {entity_name}"
-        q2 = f"{entity_name} is {entity_action}"
-        if self.verbose: print(f'Queries used for retrieving relevant memories. 1: {q1}, 2: {q2}')
-        if self.verbose: print(f'In summarize_related_memories: Get relationship between {self.name} and {entity_name}')
+        q2 = entity_action
+        # if self.verbose: print(f'Queries used for retrieving relevant memories. 1: {q1}, 2: {q2}')
+        # if self.verbose: print(f'In summarize_related_memories: Get relationship between {self.name} and {entity_name}')
         # q1 and q2 two are used to query the memory for relevant memories
-        return self.chain(prompt=prompt).invoke(input={'q1': q1, 'queries': [q1, q2]})['text']
+        input_dict = {
+            'entity_name': entity_name,
+            'agent_name': self.name,
+            'observation': observation,
+            'queries': [q1, q2]
+        }
+        return self.chain(prompt=prompt).invoke(input=input_dict)['text']
 
     def _generate_reaction(
             self, observation: str, suffix: str, now: Optional[datetime] = None
@@ -167,7 +238,8 @@ class GenerativeAgent(BaseModel):
             + "\nSummary of what has happened so far in the current situation or conversation:"
             + "\n{history}"
             + "\nThe current observation to which {agent_name} reacts: {observation}"
-            + "\nThe agents reaction should be in line with the given character traits and the agents communication style"
+            + "\n{agent_name}'s reaction should be in line with its current goal"
+            + "\n{agent_name}'s reaction should be in line with the given character traits and the agents communication style"
             + "\n\n"
             + suffix
         )
@@ -187,6 +259,7 @@ class GenerativeAgent(BaseModel):
             current_time=current_time_str,
             relevant_memories=relevant_memories_str,
             agent_name=self.name,
+            current_goal=self.current_goal,
             observation=observation,
             agent_status=self.status,
         )
@@ -194,7 +267,7 @@ class GenerativeAgent(BaseModel):
             prompt.format(history="", **kwargs)
         )
         kwargs[self.long_term_memory.most_recent_memories_token_key] = consumed_tokens
-        return self.conversation_chain(prompt=prompt).run(**kwargs).strip()
+        return self.conversation_chain(prompt=prompt).invoke(input=kwargs)['text']
 
     def _clean_response(self, text: str) -> str:
         return re.sub(f"^{self.name} ", "", text.strip()).strip()
@@ -281,7 +354,7 @@ class GenerativeAgent(BaseModel):
         if self.verbose: print('In _compute_agent_summary: ')
         return (
             self.chain(prompt)
-            .run(name=self.name, queries=[f"{self.name}'s core characteristics"])
+            .invoke({'name': self.name, 'queries': [f"{self.name}'s core characteristics"]})['text']
             .strip()
         )
 
@@ -305,7 +378,7 @@ class GenerativeAgent(BaseModel):
         return (
                 f"Name: {self.name} (age: {age})"
                 + f"\nCharacter traits: {self.character_traits}"
-                + f"\nAppearance: {self.appearance}"
+                + f"\nCurrent Goal: {self.current_goal}"
                 + f"\nCommunication Style{self.communication_style}"
                 + f"\n{self.summary}"
         )
@@ -358,7 +431,6 @@ class GenerativeAgent(BaseModel):
         agent_dict['short_term_memory'] = ShortTermMemory(**stm_dict)
 
         return GenerativeAgent(**agent_dict)
-
 
 
 
