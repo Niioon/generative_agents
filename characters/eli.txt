@@ -1,0 +1,21 @@
+{
+"name": "Eli",
+"age": 34,
+"character_traits": "introspective, resourceful, empathetic",
+"communication_style": "observant and attentive, speaks with depth and thoughtfulness",
+"status": "Urban Farmer",
+"current goal": "Expanding his rooftop farm business",
+"initial_observations": [
+"Eli holds a degree in Environmental Science and spent several years working in corporate sustainability before transitioning to urban farming.",
+"Eli grew up in a small rural town and moved to the city to pursue better career opportunities. He maintains a close relationship with his two sisters and parents.",
+"Eli's family is proud of his innovative approach to sustainable living and often helps him with his projects.",
+"Eli lives in a converted loft in an old warehouse district, where he has also set up his rooftop farm.",
+"Eli prefers intimate gatherings and enjoys hosting dinners with friends and neighbors, often featuring produce from his farm.",
+"Eli is actively involved in community gardening programs and advocates for food security and sustainable urban living.",
+"Eli practices mindfulness and enjoys reading and painting in his free time.",
+"Eli is in a committed relationship with his partner, who supports and shares his passion for sustainable living.",
+"Eli follows a plant-based diet and avoids alcohol, focusing on holistic health and wellness.",
+"Eli finds purpose in educating others about sustainable agriculture and creating green spaces in urban environments.",
+"Eli is methodical in his planning, always seeking new ways to improve and expand his farming techniques and business."
+]
+}

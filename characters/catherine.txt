@@ -3,8 +3,8 @@
 "age": 23,
 "character_traits": "extraverted, spirited, empathetic",
 "communication_style": "interested in other people, opens up fast",
-"appearance": "artsy, wears jewelry",
 "status": "Art Student",
+"current goal": "Finishing her art project",
 "initial_observations": [
     "Catherine studies art and political sciences at the local university. She is in the fourth semester of her bachelors degree",
     "Catherine comes from a conservative household but does not share her families values. Her relationship with her parents is distant",

@@ -107,65 +107,80 @@ class GenerativeAgent(BaseModel):
         if self.in_situation:
             #conv_summary = self.short_term_memory.summary
             #self.long_term_memory.add_memory(conv_summary)
-            self._reflect_on_conversation()
+            self._reflect_on_situation()
             self.short_term_memory.clear()
             self.in_situation = False
         else:
             warnings.warn("agent is not in a situation. This function call will be ignored")
 
-    def _appraise_statement(self, statement):
+    def _appraise_statements(self, statements):
         prompt = PromptTemplate.from_template(
             "{agent_summary_description}"
             + "\nIt is {current_time}."
             + "\n{agent_name}'s status: {agent_status}"
-            + "\nSummary of relevant context from {agent_name}'s memory:"
+            + "\nRelevant context from {agent_name}'s memory:"
             + "\n{relevant_memories}"
-            + "\nThe statement which {agent_name} appraises: {statement}"
-            + "\nGiven the context from memory and the characters summary, what is {agent_name}'s emotional appraisal of the statement"
+            + "\nThe statements which {agent_name} appraises: {statements}"
+            + "\nGiven the context from memory and the characters summary, what is {agent_name}'s emotional appraisal of the statements"
             + "\nThe appraisal can for example be a degree of agreement/disagreement or any kind of emotional response"
-            + "\nAnswer precisely in one sentence"
+            + "\nAnswer precisely with one sentence per statement"
+            + "\nAnswer in the following form:"
+            + "\n# [the first statement]: [appraisal]"
+            + "\n# [the second statement]: [appraisal]"
+            + "\n ..."
+
+
         )
         agent_summary_description = self.get_summary()
-        relevant_memories_str = self.summarize_related_memories(statement)
         current_time_str = datetime.now().strftime("%B %d, %Y, %I:%M %p")
+        queries = [statements]
 
         kwargs: Dict[str, Any] = dict(
             agent_summary_description=agent_summary_description,
             current_time=current_time_str,
-            relevant_memories=relevant_memories_str,
             agent_name=self.name,
-            current_goal=self.current_goal,
-            statement=statement,
+            statements=statements,
             agent_status=self.status,
+            queries=queries
         )
         return self.chain(prompt=prompt).invoke(input=kwargs)['text']
-    def _reflect_on_conversation(self):
+
+    def _reflect_on_situation(self):
         """
         called after situation ended.
         """
 
         # first get key points of conversation
         prompt = PromptTemplate.from_template(
-            """
-            What are the key points or arguments of the following conversation and by whom were they made:
-            {conversation}
-            Give a list of short and precise statements in the following form
-            # statement 1
-            # statement 2
-            ...
-            """
-        )
-        conversation = get_buffer_string(self.short_term_memory.chat_memory.messages)
-        statements = self.chain(prompt).invoke(input={'conversation': conversation})['text']
-        print(statements)
-        statements = statements.split('#')[1:]
-        print(statements)
-        # append appraisal to the respective statements
-        new_memories = [", ".join([statement, self._appraise_statement(statement)]) for statement in statements]
-        print(new_memories)
-        for memory in new_memories:
-            self.long_term_memory.add_memory(memory)
+            "You will be provided with a record of a situation."
+            + "\nIf that situation is a conversation:"
+            + "\nWhat are the key points or arguments of the following conversation and by whom were they made?"
+            + "\nIf not: What are the key actions and events in that situation?"
+            + "\nThe situation:"
+            + "\n{situation}"
+            + "\nGive a list of up to 7 short and precise statements in the following form"
+            + "\n# statement 1"
+            + "\n# statement 2"
+            + "\n..."
 
+        )
+        # get conversation from STM
+        situation = get_buffer_string(self.short_term_memory.chat_memory.messages)
+        if self.verbose:
+            print ('In _reflect_on_situation: summarizing situation')
+        statements = self.chain(prompt).invoke(input={'situation': situation})['text']
+        if self.verbose:
+            print ('In _reflect_on_situation: Appraising situation summary')
+        appraisals = self._appraise_statements(statements).split('# ')[1:]
+
+        if self.verbose:
+            print(f'New memories: \n {appraisals}')
+
+        if self.verbose:
+            print('Adding new memories to LTM')
+        for appraisal in appraisals:
+            memory = appraisal.strip()
+            self.long_term_memory.add_memory(memory)
 
     def _get_entity_from_observation(self, observation: str) -> str:
         #prompt = PromptTemplate.from_template(
@@ -191,19 +206,19 @@ class GenerativeAgent(BaseModel):
     def summarize_related_memories(self, observation: str) -> str:
         """Summarize memories that are most relevant to an observation."""
         prompt = PromptTemplate.from_template(
-            """
-            Given the presented context from memory:
-            Provide a short summary of the relationship between {agent_name} and {entity_name}
-            Provide a short summary of the relevant memories regarding the observation
-            Context from memory:
-            {relevant_memories}
-            Observation:
-            {observation}
-            Only answer based on the provided memories and DO NOT assume anything else.
-            Answer with a maximum of two sentences for each point and answer in the following form
-            Relationship between {agent_name} and {entity_name}:...
-            Summary of relevant memories:...
-            """
+            "Given the presented context from memory:"
+            + "\nProvide a short summary of the relationship between {agent_name} and {entity_name}"
+            + "\nProvide a short summary of the relevant memories regarding the observation"
+            + "\nContext from memory:"
+            + "\n{relevant_memories}"
+            + "\nObservation:"
+            + "\n{observation}"
+            + "\nOnly answer based on the provided memories and DO NOT assume anything else."
+            + "\nFor each of the two summaries, only consider the memories which are relevant to that summary."
+            + "\nAnswer with a maximum of two sentences for each point and answer in the following form"
+            + "\nRelationship between {agent_name} and {entity_name}:..."
+            + "\nSummary of relevant memories:..."
+
         )
         if self.verbose: print('In summarize_related_memories: Get entity from Observation')
         entity_name = self._get_entity_from_observation(observation)
@@ -286,17 +301,8 @@ class GenerativeAgent(BaseModel):
         full_result = self._generate_reaction(
             observation, call_to_action_template, now=now
         )
-        print(full_result)
         result = full_result.strip().split("\n")[0]
-        # AAA
-        self.long_term_memory.save_context(
-            {},
-            {
-                self.long_term_memory.add_memory_key: f"{self.name} observed "
-                                            f"{observation} and reacted by {result}",
-                self.long_term_memory.now_key: now,
-            },
-        )
+
         if "REACT:" in result:
             reaction = self._clean_response(result.split("REACT:")[-1])
             return False, f"{self.name} {reaction}"
@@ -304,6 +310,7 @@ class GenerativeAgent(BaseModel):
             said_value = self._clean_response(result.split("SAY:")[-1])
             return True, f"{self.name} said {said_value}"
         else:
+            warnings.warn("LLM did not adhere to output structure. Output might not make sense")
             return False, result
 
     def generate_dialogue_response(

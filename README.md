@@ -1,6 +1,5 @@
 # Generative Agents for text based Environments
-- General Introduction to Generative agents
-- add credit to gen agents paper and the starter code from langchain
+
 
 ## Get started
 - install the required libraries in conda using the .yml file
@@ -11,6 +10,15 @@
 
 
 ## Agent Architecture
-
+Comprehensive Overview on the agent architecture
 
 ## Text based environment
+Describe Oakville Scenario
+
+
+## TODO
+- General Introduction to the repository
+- add credit to gen agents paper and the starter code from langchain
+- Finish the oakville scenario and make a separate notebook on how tu run it 
+- have a look at eval_dialogue for automatic evaluation by GPT
+- Component Testing

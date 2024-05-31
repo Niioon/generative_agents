@@ -286,8 +286,9 @@ class GenerativeAgentMemory(BaseMemory):
         queries = inputs.get(self.queries_key)
         now = inputs.get(self.now_key)
         if queries is not None:
-            logger.info("Fetching relevant memories for given queries")
-            logger.info(f'queries: {queries}')
+            if self.verbose:
+                logger.info("Fetching relevant memories for given queries")
+                logger.info(f'queries: {queries}')
             relevant_memories = [
                 mem for query in queries for mem in self.fetch_memories(query, now=now)
             ]

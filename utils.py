@@ -26,7 +26,7 @@ def pretty_print(string):
             print(" ".join(words[i:]))
 
 
-def run_conversation(agents, initial_observation: str, max_turns: int=4, verbose=False) -> list[str]:
+def run_conversation(agents, initial_observation: str, max_turns: int = 10, verbose: bool = False) -> list[str]:
     """Runs a conversation between agents."""
 
     _, observation = agents[1].generate_dialogue_response(initial_observation)
@@ -46,7 +46,6 @@ def run_conversation(agents, initial_observation: str, max_turns: int=4, verbose
             if verbose:
                 print("____")
                 pretty_print(observation)
-                print("____")
             if not stay_in_dialogue:
                 break_dialogue = True
         if break_dialogue:
